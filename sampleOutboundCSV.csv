@@ -1,0 +1,2 @@
+FirstName, LastName, MobileNumber, ChannelPreference, LanguagePreference,MessageBody
+John, Doe, +19998887777, SMS, English, 'hi'
