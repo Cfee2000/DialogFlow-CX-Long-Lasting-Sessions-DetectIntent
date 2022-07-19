@@ -1,0 +1,221 @@
+{
+  "description": "Outbound SMS Dialogflow CX",
+  "states": [
+    {
+      "name": "Trigger",
+      "type": "trigger",
+      "transitions": [
+        {
+          "event": "incomingMessage"
+        },
+        {
+          "event": "incomingCall"
+        },
+        {
+          "event": "incomingConversationMessage"
+        },
+        {
+          "next": "SetUtterance",
+          "event": "incomingRequest"
+        },
+        {
+          "event": "incomingParent"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "name": "SendDialogflowAnswerAndWaitForReply",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "ResetUtteranceVariable",
+          "event": "incomingMessage"
+        },
+        {
+          "event": "timeout"
+        },
+        {
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -430,
+          "y": 480
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "{{flow.channel.address}}",
+        "body": "{% for i in (1..widgets.DialogflowDetectIntent.parsed.responseMessages.size) %}\n{{widgets.DialogflowDetectIntent.parsed.responseMessages[forloop.index0].text.text}}\n{% endfor %}",
+        "timeout": "1800"
+      }
+    },
+    {
+      "name": "ResetUtteranceVariable",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "DialogflowDetectIntent",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{widgets.SendDialogflowAnswerAndWaitForReply.inbound.Body}}",
+            "key": "utterance"
+          }
+        ],
+        "offset": {
+          "x": -470,
+          "y": 720
+        }
+      }
+    },
+    {
+      "name": "WantsToEndSession",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "SendDialogflowAnswerAndWaitForReply",
+          "event": "noMatch"
+        },
+        {
+          "next": "SendFinalMessage",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "End Session",
+              "arguments": [
+                "{{widgets.DialogflowDetectIntent.parsed.currentPage.displayName}}"
+              ],
+              "type": "equal_to",
+              "value": "End Session"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.DialogflowDetectIntent.parsed.currentPage.displayName}}",
+        "offset": {
+          "x": 180,
+          "y": 950
+        }
+      }
+    },
+    {
+      "name": "SendFinalMessage",
+      "type": "send-message",
+      "transitions": [
+        {
+          "event": "sent"
+        },
+        {
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 660,
+          "y": 770
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "{% for i in (1..widgets.DialogflowDetectIntent.parsed.responseMessages.size) %}\n{{widgets.DialogflowDetectIntent.parsed.responseMessages[forloop.index0].text.text}}\n{% endfor %}"
+      }
+    },
+    {
+      "name": "SetDialogflowSession",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "WantsToEndSession",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{widgets.DialogflowDetectIntent.parsed.session_id}}",
+            "key": "dialogflow_session_id"
+          }
+        ],
+        "offset": {
+          "x": 200,
+          "y": 640
+        }
+      }
+    },
+    {
+      "name": "DialogflowDetectIntent",
+      "type": "run-function",
+      "transitions": [
+        {
+          "next": "SetDialogflowSession",
+          "event": "success"
+        },
+        {
+          "event": "fail"
+        }
+      ],
+      "properties": {
+        "service_sid": "",
+        "environment_sid": "",
+        "offset": {
+          "x": 200,
+          "y": 440
+        },
+        "function_sid": "",
+        "parameters": [
+          {
+            "value": "{{flow.variables.dialogflow_session_id}}",
+            "key": "dialogflow_session_id"
+          },
+          {
+            "value": "{{{contact.channel.address}}",
+            "key": "Phone"
+          },
+          {
+            "value": "{{flow.variables.utterance}}",
+            "key": "utterance"
+          }
+        ],
+        "url": "https://att-df-cx-demo-1248.twil.io/digital_channels_detect_intent_inbound.js"
+      }
+    },
+    {
+      "name": "SetUtterance",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "DialogflowDetectIntent",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{flow.data.body}}",
+            "key": "utterance"
+          }
+        ],
+        "offset": {
+          "x": 230,
+          "y": 220
+        }
+      }
+    }
+  ],
+  "initial_state": "Trigger",
+  "flags": {
+    "allow_concurrent_calls": true
+  }
+}
