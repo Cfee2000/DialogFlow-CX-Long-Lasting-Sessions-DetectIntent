@@ -8,7 +8,7 @@ const client = require('twilio')(accountSid, authToken); //Creates an instance o
 
 //Read a CSV file into an array for processing (this is just a CSV mock database - it can be whatever your data source is)
 fs.readFile(
-  'LendingUSA.csv',
+  'EXAMPLE.csv',
   'utf8',
   (err, data) => {
     const records = parse(data, { from_line: 2 }); //Grab the CSV records, ignoring the header record
