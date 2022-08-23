@@ -1,0 +1,312 @@
+{
+  "description": "Conversations Dialogflow Flex Channels",
+  "states": [
+    {
+      "name": "Trigger",
+      "type": "trigger",
+      "transitions": [
+        {
+          "event": "incomingMessage"
+        },
+        {
+          "event": "incomingCall"
+        },
+        {
+          "next": "SetUtteranceVariable",
+          "event": "incomingConversationMessage"
+        },
+        {
+          "event": "incomingRequest"
+        },
+        {
+          "event": "incomingParent"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "name": "SetUtteranceVariable",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "DialogflowDetectIntent",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{trigger.conversation.Body}}",
+            "key": "utterance"
+          }
+        ],
+        "offset": {
+          "x": 190,
+          "y": 200
+        }
+      }
+    },
+    {
+      "name": "DialogflowDetectIntent",
+      "type": "run-function",
+      "transitions": [
+        {
+          "next": "SetDialogflowSession",
+          "event": "success"
+        },
+        {
+          "event": "fail"
+        }
+      ],
+      "properties": {
+        "service_sid": "",
+        "environment_sid": "",
+        "offset": {
+          "x": 180,
+          "y": 440
+        },
+        "function_sid": "",
+        "parameters": [
+          {
+            "value": "{{flow.variables.utterance}}",
+            "key": "utterance"
+          },
+          {
+            "value": "{{flow.variables.dialogflow_session_id}}",
+            "key": "dialogflow_session_id"
+          },
+          {
+            "value": "{{trigger.conversation.ChannelAttributes.pre_engagement_data.email}}",
+            "key": "email"
+          },
+          {
+            "value": "{{trigger.conversation.Source}}",
+            "key": "ChannelSource"
+          },
+          {
+            "value": "{{trigger.conversation.From}}",
+            "key": "Phone"
+          },
+          {
+            "value": "{{trigger.conversation.From}}",
+            "key": "gbm_agent"
+          }
+        ],
+        "url": "https://conversationsstudio-3216.twil.io/agnostic_detect_intent_inbound.js"
+      }
+    },
+    {
+      "name": "SendDialogflowAnswerAndWaitForReply",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "ResetUtteranceVariable",
+          "event": "incomingMessage"
+        },
+        {
+          "event": "timeout"
+        },
+        {
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -370,
+          "y": 460
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "Customer Care",
+        "body": "{% for i in (1..widgets.DialogflowDetectIntent.parsed.responseMessages.size) %}\n{{widgets.DialogflowDetectIntent.parsed.responseMessages[forloop.index0].text.text}}\n{% endfor %}",
+        "timeout": "1800"
+      }
+    },
+    {
+      "name": "ResetUtteranceVariable",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "DialogflowDetectIntent",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{widgets.SendDialogflowAnswerAndWaitForReply.inbound.Body}}",
+            "key": "utterance"
+          }
+        ],
+        "offset": {
+          "x": -300,
+          "y": 690
+        }
+      }
+    },
+    {
+      "name": "WantsToEndSession",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "SendDialogflowAnswerAndWaitForReply",
+          "event": "noMatch"
+        },
+        {
+          "next": "SendFinalMessage",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "End Session",
+              "arguments": [
+                "{{widgets.DialogflowDetectIntent.parsed.currentPage.displayName}}"
+              ],
+              "type": "equal_to",
+              "value": "End Session"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.DialogflowDetectIntent.parsed.currentPage.displayName}}",
+        "offset": {
+          "x": -210,
+          "y": 1170
+        }
+      }
+    },
+    {
+      "name": "SendFinalMessage",
+      "type": "send-message",
+      "transitions": [
+        {
+          "event": "sent"
+        },
+        {
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 10,
+          "y": 1430
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "{% for i in (1..widgets.DialogflowDetectIntent.parsed.responseMessages.size) %}\n{{widgets.DialogflowDetectIntent.parsed.responseMessages[forloop.index0].text.text}}\n{% endfor %}"
+      }
+    },
+    {
+      "name": "SetDialogflowSession",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "WantsAgent",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{widgets.DialogflowDetectIntent.parsed.session_id}}",
+            "key": "dialogflow_session_id"
+          }
+        ],
+        "offset": {
+          "x": 190,
+          "y": 630
+        }
+      }
+    },
+    {
+      "name": "WantsAgent",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "WantsToEndSession",
+          "event": "noMatch"
+        },
+        {
+          "next": "SendConnectingToAgent",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Wants Agent",
+              "arguments": [
+                "{{widgets.DialogflowDetectIntent.parsed.intent.displayName}}"
+              ],
+              "type": "equal_to",
+              "value": "small_talk.agent_hand_off"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.DialogflowDetectIntent.parsed.intent.displayName}}",
+        "offset": {
+          "x": 160,
+          "y": 910
+        }
+      }
+    },
+    {
+      "name": "SendToFlexAgent",
+      "type": "send-to-flex",
+      "transitions": [
+        {
+          "event": "callComplete"
+        },
+        {
+          "event": "failedToEnqueue"
+        },
+        {
+          "event": "callFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 630,
+          "y": 1460
+        },
+        "workflow": "WW23b3d203d14609185dc0a3194786598d",
+        "channel": "TC3bdc5466d220b127e5510a094225edd3",
+        "attributes": "{}"
+      }
+    },
+    {
+      "name": "SendConnectingToAgent",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "SendToFlexAgent",
+          "event": "sent"
+        },
+        {
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 470,
+          "y": 1150
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "Toyota Customer Care",
+        "to": "{{contact.channel.address}}",
+        "body": "{% for i in (1..widgets.DialogflowDetectIntent.parsed.responseMessages.size) %}\n{{widgets.DialogflowDetectIntent.parsed.responseMessages[forloop.index0].text.text}}\n{% endfor %}"
+      }
+    }
+  ],
+  "initial_state": "Trigger",
+  "flags": {
+    "allow_concurrent_calls": true
+  }
+}
